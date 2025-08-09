@@ -190,18 +190,14 @@ class MCPClient {
       },
     ];
 
-    console.log(JSON.stringify(messages, null, 2));
-    
     // Initial Claude API call
     const response = await this.anthropic.messages.create({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-3-5-sonnet-20250106",
       max_tokens: 1000,
       messages,
       tools: this.tools,
       system: "<use_parallel_tool_calls>Invoke tools simultaneously whenever possible.</use_parallel_tool_calls>",
     });
-
-    console.log(JSON.stringify(response.content, null, 2));
 
     // Process response and handle tool calls
     const textContent = [];
@@ -223,65 +219,45 @@ class MCPClient {
         role: "assistant",
         content: response.content,
       });
-      
-      console.log(JSON.stringify(messages, null, 2));
 
       // Execute all tool calls in parallel
+      console.log(`Executing ${toolCalls.length} tool calls in parallel...`);
       const toolPromises = toolCalls.map(async (toolCall) => {
+        console.log(`[Calling tool ${toolCall.name} with args ${JSON.stringify(toolCall.input)}]`);
         try {
           const result = await this.mcp.callTool({
             name: toolCall.name,
             arguments: toolCall.input as { [x: string]: unknown } | undefined,
           });
-          console.log(JSON.stringify(result, null, 2));
-          
-          // Extract the actual content from MCP result
-          let content: string;
-          if (typeof result.content === 'string') {
-            content = result.content;
-          } else if (result.content && typeof result.content === 'object') {
-            // Handle different MCP result formats
-            content = JSON.stringify(result.content);
-          } else {
-            // Fallback: stringify the entire result
-            content = JSON.stringify(result);
-          }
-          
           return {
             type: "tool_result" as const,
             tool_use_id: toolCall.id,
-            content: content,
+            content: result.content as string,
           };
         } catch (error) {
-          console.log(error);
           return {
             type: "tool_result" as const,
             tool_use_id: toolCall.id,
-            content: `Error: ${error instanceof Error ? error.message : String(error)}`,
+            content: `Error executing tool ${toolCall.name}: ${error}`,
+            is_error: true,
           };
         }
       });
 
       const toolResults = await Promise.all(toolPromises);
-      
-      console.log(JSON.stringify(toolResults, null, 2));
 
       // Send all tool results in a single user message
       messages.push({
         role: "user",
         content: toolResults,
       });
-      
-      console.log(JSON.stringify(messages, null, 2));
 
       // Get Claude's final response incorporating all tool results
       const finalResponse = await this.anthropic.messages.create({
-        model: "claude-3-5-sonnet-20241022",
+        model: "claude-3-5-sonnet-20250106",
         max_tokens: 1000,
         messages,
       });
-      
-      console.log(JSON.stringify(finalResponse.content, null, 2));
 
       // Combine initial text with final response
       const finalText = [];
