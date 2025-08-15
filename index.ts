@@ -1,5 +1,6 @@
 import { Anthropic } from "@anthropic-ai/sdk";
 import {
+  ContentBlock,
   MessageParam,
   Tool,
 } from "@anthropic-ai/sdk/resources/messages/messages.mjs";
@@ -320,8 +321,12 @@ class MCPClient {
       ? "Use tools sequentially when the output of one tool is needed as input for another. Use parallel tool calls only when operations are independent."
       : "<use_parallel_tool_calls>Invoke tools simultaneously whenever possible.</use_parallel_tool_calls>";
 
-    // Initial Claude API call
-    let response = await this.anthropic.messages.create({
+    // Initial Claude API call with streaming
+    console.log("🔄 1st Streaming Claude response...");
+    let response;
+    let streamedContent = "";
+
+    const stream = await this.anthropic.messages.stream({
       model: "claude-3-5-sonnet-20241022",
       max_tokens: 1000,
       messages,
@@ -329,7 +334,26 @@ class MCPClient {
       system: systemPrompt,
     });
 
-    // console.log(JSON.stringify(response.content, null, 2));
+    // Handle streaming events
+    stream.on("text", (text) => {
+      process.stdout.write(text);
+      streamedContent += text;
+    });
+
+    stream.on("contentBlock", (contentBlock: ContentBlock) => {
+      // Handle content blocks (including tool calls)
+
+      console.log(`contentBlock:  ${JSON.stringify(contentBlock, null, 2)}`);
+    });
+
+    // Wait for the stream to complete and get the final message
+    response = await stream.finalMessage();
+
+    console.log("final message: ", { response, streamedContent });
+
+    if (streamedContent) {
+      console.log("\n"); // Add newline after streaming
+    }
 
     // Handle tool calls in a loop for sequential chaining
     let currentResponse = response;
@@ -392,7 +416,7 @@ class MCPClient {
         toolResults = await Promise.all(toolPromises);
       }
 
-      // console.log("toolResults: ", JSON.stringify(toolResults, null, 2));
+      console.log("toolResults: ", JSON.stringify(toolResults, null, 2));
 
       // Send all tool results in a single user message
       messages.push({
@@ -400,10 +424,13 @@ class MCPClient {
         content: toolResults,
       });
 
-      // console.log(JSON.stringify(messages, null, 2));
+      console.log(JSON.stringify(messages, null, 2));
 
-      // Get Claude's next response
-      currentResponse = await this.anthropic.messages.create({
+      // Get Claude's next response with streaming
+      console.log("\n🔄  2nd Streaming Claude response...\n ");
+      let nextStreamedContent = "";
+
+      const nextStream = await this.anthropic.messages.stream({
         model: "claude-3-5-sonnet-20241022",
         max_tokens: 1000,
         messages,
@@ -411,10 +438,26 @@ class MCPClient {
         system: systemPrompt,
       });
 
-      // console.log(
-      //   "currentResponse.content: ",
-      //   JSON.stringify(currentResponse.content, null, 2)
-      // );
+      // Handle streaming events
+      nextStream.on("text", (text) => {
+        console.log("text is priniting in text event \n");
+        process.stdout.write(text);
+        console.log("text is priniting in text event \n");
+        nextStreamedContent += text;
+      });
+
+      nextStream.on("contentBlock", (contentBlock) => {
+        // Handle content blocks (including tool calls)
+      });
+
+      // Wait for the stream to complete and get the final message
+      currentResponse = await nextStream.finalMessage();
+
+      console.log("final message after 2nd streaming: ", { currentResponse });
+
+      if (nextStreamedContent) {
+        console.log("\n"); // Add newline after streaming
+      }
       roundCount++;
     }
 
@@ -591,7 +634,7 @@ class MCPClient {
           console.log("Processing with sequential mode...");
           try {
             const response = await this.processQuerySequential(query);
-            console.log("\n" + response);
+            console.log("\n Response from sequential mode: " + response);
           } catch (error) {
             console.error("Error processing sequential query:", error);
           }
@@ -600,7 +643,7 @@ class MCPClient {
 
         try {
           const response = await this.processQuery(message);
-          console.log("\n" + response);
+          console.log("\n Response from parallel mode: " + response);
         } catch (error) {
           console.error("Error processing query:", error);
         }
