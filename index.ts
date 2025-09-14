@@ -440,9 +440,7 @@ class MCPClient {
 
       // Handle streaming events
       nextStream.on("text", (text) => {
-        console.log("text is priniting in text event \n");
         process.stdout.write(text);
-        console.log("text is priniting in text event \n");
         nextStreamedContent += text;
       });
 
