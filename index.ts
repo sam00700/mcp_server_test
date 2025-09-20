@@ -36,7 +36,7 @@ class MCPClient {
   private connectedServers: Map<string, ConnectedServer> = new Map();
   private allTools: Tool[] = [];
   private toolToServerMap: Map<string, string> = new Map();
-  private enableSequentialToolCalls: boolean = false;
+  private enableSequentialToolCalls: boolean = true;
   private maxToolCallRounds: number = 5;
 
   constructor() {
@@ -539,7 +539,7 @@ class MCPClient {
     }
   }
 
-  enableSequentialMode(enabled: boolean = true, maxRounds: number = 5) {
+  enableSequentialMode(enabled: boolean = true, maxRounds: number = 10) {
     /**
      * Enable or disable sequential tool calling mode
      *
@@ -631,7 +631,7 @@ class MCPClient {
           const query = message.substring(4);
           console.log("Processing with sequential mode...");
           try {
-            const response = await this.processQuerySequential(query);
+            const response = await this.processQuerySequential(query, 10);
             console.log("\n Response from sequential mode: " + response);
           } catch (error) {
             console.error("Error processing sequential query:", error);

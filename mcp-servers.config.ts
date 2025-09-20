@@ -41,6 +41,25 @@ export const MCP_SERVERS: MCPServersConfig = {
     args: ["-y", "calculate-mcp-server"],
   },
 
+  // smartlead_official: {
+  //   command: "npx",
+  //   args: [
+  //     "-y",
+  //     "mcp-remote",
+  //     "https://mcp.smartlead.ai/sse?user_api_key=b0f45862-95fb-4a05-9120-375496c191b9_6ehfaps",
+  //   ],
+  // },
+
+  ClickUp: {
+    command: "npx",
+    args: ["-y", "@taazkareem/clickup-mcp-server@latest"],
+    env: {
+      CLICKUP_API_KEY: "pk_200631573_FNWPBTJDC9K70ZC8O7ZR1ZBJV6HV28YH",
+      CLICKUP_TEAM_ID: "90161071797",
+      DOCUMENT_SUPPORT: "true",
+    },
+  },
+
   // Example of Airbnb server without ignoring robots.txt
   // airbnb_respectful: {
   //   command: "npx",
